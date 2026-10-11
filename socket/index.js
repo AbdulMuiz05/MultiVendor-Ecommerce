@@ -4,7 +4,7 @@ const http = require("http");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 
-const PORT = Number(process.env.SOCKET_PORT || 4001);
+const PORT = Number(process.env.PORT || process.env.SOCKET_PORT || 4001);
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const INTERNAL_SOCKET_SECRET = process.env.INTERNAL_SOCKET_SECRET;
 
@@ -19,8 +19,14 @@ const parseCookies = (header = "") =>
   }, {});
 
 const server = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    return res.end("Eshop Socket.IO server is running");
+  }
+
   if (req.method !== "POST" || req.url !== "/internal/publish-message") {
-    return;
+    res.writeHead(404);
+    return res.end("Not found");
   }
 
   if (!INTERNAL_SOCKET_SECRET || req.headers["x-internal-socket-secret"] !== INTERNAL_SOCKET_SECRET) {
@@ -106,6 +112,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Eshop socket server is running on port ${PORT}`);
 });
