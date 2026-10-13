@@ -25,9 +25,10 @@ router.get("/getuser", isAuthenticated, (req, res) => {
 router.put("/update-user-info", isAuthenticated, updateUserInfo);
 
 router.post("/logout", isAuthenticated, (req, res) => {
-  res.cookie("token", null, {
-    expires: new Date(Date.now()),
+  res.clearCookie("token", {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
 
   res.status(200).json({
