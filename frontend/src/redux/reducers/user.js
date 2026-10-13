@@ -17,6 +17,7 @@ import {
 
 const initialState = {
   loading: false,
+  authChecked: false,
   isAuthenticated: false,
   user: null,
   error: null,
@@ -35,21 +36,43 @@ const userReducer = (state = initialState, action) => {
       };
 
     case userRegisterSuccess:
+      return {
+        ...state,
+        loading: false,
+        error: null,
+      };
+
     case userActivationSuccess:
+  return {
+    ...state,
+    loading: false,
+    error: null,
+  };
+
     case userLoginSuccess:
     case loadUserSuccess:
       return {
         ...state,
         loading: false,
+        authChecked: true,
         isAuthenticated: true,
         user: action.payload,
+        error: null,
+      };
+
+    case loadUserFailed:
+      return {
+        ...state,
+        loading: false,
+        authChecked: true,
+        isAuthenticated: false,
+        user: null,
         error: null,
       };
 
     case userRegisterFailed:
     case userActivationFailed:
     case userLoginFailed:
-    case loadUserFailed:
     case userLogoutFailed:
       return {
         ...state,
@@ -61,6 +84,7 @@ const userReducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
+        authChecked: true,
         isAuthenticated: false,
         user: null,
         error: null,
