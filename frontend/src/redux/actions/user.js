@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_URL } from "../../server";
 
 export const userRegisterRequest = "userRegisterRequest";
 export const userRegisterSuccess = "userRegisterSuccess";
@@ -24,7 +25,7 @@ export const registerUser = (userData) => async (dispatch) => {
     dispatch({ type: userRegisterRequest });
 
     const { data } = await axios.post(
-      `${process.env.REACT_APP_BACKEND_URL}/api/v1/user/register`,
+      `${API_URL}/user/register`,
       userData,
       { withCredentials: true }
     );
@@ -48,7 +49,7 @@ export const activateUser = (activationToken) => async (dispatch) => {
     dispatch({ type: userActivationRequest });
 
     const { data } = await axios.post(
-      `${process.env.REACT_APP_BACKEND_URL}/api/v1/user/activation`,
+      `${API_URL}/user/activation`,
       { activation_token: activationToken },
       { withCredentials: true }
     );
@@ -72,7 +73,7 @@ export const loginUser = (email, password) => async (dispatch) => {
     dispatch({ type: userLoginRequest });
 
     const { data } = await axios.post(
-      `${process.env.REACT_APP_BACKEND_URL}/api/v1/user/login`,
+      `${API_URL}/user/login`,
       { email, password },
       { withCredentials: true }
     );
@@ -96,7 +97,7 @@ export const loadUser = () => async (dispatch) => {
     dispatch({ type: loadUserRequest });
 
     const { data } = await axios.get(
-      `${process.env.REACT_APP_BACKEND_URL}/api/v1/user/getuser`,
+      `${API_URL}/user/getuser`,
       { withCredentials: true }
     );
 
@@ -112,18 +113,31 @@ export const loadUser = () => async (dispatch) => {
   }
 };
 
+const finishLogout = (dispatch) => {
+  localStorage.removeItem("user");
+  dispatch({ type: userLogoutSuccess });
+  return true;
+};
+
 export const logoutUser = () => async (dispatch) => {
   try {
-    await axios.get(
-      `${process.env.REACT_APP_BACKEND_URL}/api/v1/user/logout`,
+    await axios.post(
+      `${API_URL}/user/logout`,
+      {},
       { withCredentials: true }
     );
 
-    dispatch({ type: userLogoutSuccess });
+    return finishLogout(dispatch);
   } catch (error) {
+    if (error.response?.status === 401) {
+      return finishLogout(dispatch);
+    }
+
     dispatch({
       type: userLogoutFailed,
       payload: error.response?.data?.message || error.message,
     });
+
+    return false;
   }
 };
