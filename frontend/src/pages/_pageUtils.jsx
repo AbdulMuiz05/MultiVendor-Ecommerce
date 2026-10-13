@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import axios from "axios";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   FiArrowLeft,
   FiLoader,
@@ -8,6 +9,8 @@ import {
 } from "react-icons/fi";
 
 import { API_URL, SOCKET_URL } from "../server";
+import { loadUser } from "../redux/actions/user";
+import UserMenu from "../components/Layout/UserMenu";
 
 export { API_URL, SOCKET_URL };
 
@@ -103,8 +106,6 @@ export const Select = ({
   </label>
 );
 
-// Public storefront pages where visitors should see Login / Sign Up.
-// Customer-only, seller and admin pages are intentionally excluded.
 const PUBLIC_AUTH_PATHS = [
   "/",
   "/products",
@@ -123,10 +124,29 @@ export const Shell = ({
 }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const dispatch = useDispatch();
+  const { isAuthenticated, authChecked } = useSelector(
+    (state) => state.user
+  );
 
   const showAuthLinks =
     PUBLIC_AUTH_PATHS.includes(pathname) ||
     pathname.startsWith("/product/");
+
+  const showAccount =
+    !pathname.startsWith("/admin") && !pathname.startsWith("/shop");
+
+  useEffect(() => {
+    if (showAccount && !authChecked) {
+      dispatch(loadUser());
+    }
+  }, [showAccount, authChecked, dispatch]);
+
+  const handleLoggedOut = () => {
+    if (!showAuthLinks) {
+      navigate("/", { replace: true });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-light">
@@ -150,7 +170,15 @@ export const Shell = ({
               </button>
             )}
 
-            {showAuthLinks && (
+            {showAccount && !authChecked && (
+              <div className="h-10 w-32" aria-hidden="true" />
+            )}
+
+            {showAccount && authChecked && isAuthenticated && (
+              <UserMenu onLoggedOut={handleLoggedOut} />
+            )}
+
+            {showAccount && authChecked && !isAuthenticated && showAuthLinks && (
               <nav
                 aria-label="Account"
                 className="flex items-center gap-1 sm:gap-2"
