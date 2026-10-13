@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiEye, FiEyeOff, FiLock, FiMail } from "react-icons/fi";
 import axios from "axios";
+import { useDispatch } from "react-redux";
 import { API_URL } from "../server";
+import { userLoginSuccess } from "../redux/actions/user";
 
 export default function Login() {
+  const dispatch = useDispatch();
   const [form, setForm] = useState({ email: "", password: "" });
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,7 +26,11 @@ export default function Login() {
         { withCredentials: true }
       );
 
-      localStorage.setItem("user", JSON.stringify(data.user || {}));
+      const user = { ...(data.user || {}) };
+      delete user.password;
+
+      localStorage.setItem("user", JSON.stringify(user));
+      dispatch({ type: userLoginSuccess, payload: user });
       nav("/");
     } catch (err) {
       setError(
