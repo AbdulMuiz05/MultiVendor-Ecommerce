@@ -1,7 +1,23 @@
 import { createReducer } from "@reduxjs/toolkit";
 
+import { CART_STORAGE_KEY, readStoredArray } from "../persist";
+
+const normalizeQty = (qty, stock) => {
+  const next = Math.max(1, Math.floor(Number(qty) || 1));
+  const limit = Number(stock);
+
+  if (Number.isFinite(limit) && limit > 0) {
+    return Math.min(next, limit);
+  }
+
+  return next;
+};
+
 const initialState = {
-  cart: [],
+  cart: readStoredArray(CART_STORAGE_KEY).map((item) => ({
+    ...item,
+    qty: normalizeQty(item.qty, item.stock),
+  })),
 };
 
 export const cartReducer = createReducer(initialState, (builder) => {
@@ -9,16 +25,21 @@ export const cartReducer = createReducer(initialState, (builder) => {
     .addCase("addToCart", (state, action) => {
       const item = action.payload;
 
+      if (!item?._id) return;
+
       const existingItem = state.cart.find(
         (product) => product._id === item._id
       );
 
       if (existingItem) {
-        existingItem.qty += item.qty || 1;
+        existingItem.qty = normalizeQty(
+          existingItem.qty + (Number(item.qty) || 1),
+          existingItem.stock
+        );
       } else {
         state.cart.push({
           ...item,
-          qty: item.qty || 1,
+          qty: normalizeQty(item.qty || 1, item.stock),
         });
       }
     })
@@ -29,11 +50,10 @@ export const cartReducer = createReducer(initialState, (builder) => {
     })
     .addCase("updateCartQuantity", (state, action) => {
       const { id, qty } = action.payload;
-
       const item = state.cart.find((product) => product._id === id);
 
       if (item) {
-        item.qty = qty;
+        item.qty = normalizeQty(qty, item.stock);
       }
     })
     .addCase("clearCart", (state) => {

@@ -70,4 +70,11 @@ const productSchema = new mongoose.Schema({
   },
 });
 
+productSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    if (ret.shop) delete ret.shop.password;
+    return ret;
+  },
+});
+
 module.exports = mongoose.model("Product", productSchema);

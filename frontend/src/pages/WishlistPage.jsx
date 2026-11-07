@@ -1,104 +1,67 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
-import {
-  Button,
-  Card,
-  Empty,
-  Shell,
-  imageUrl,
-  money,
-} from "./_pageUtils";
+import { useDispatch, useSelector } from "react-redux";
+import { FiArrowRight, FiHeart } from "react-icons/fi";
 
-const KEY = "eshop_wishlist";
+import ProductCard from "../components/Product/ProductCard";
+import { Empty, Shell } from "./_pageUtils";
+import { removeFromWishlist } from "../redux/actions/wishlist";
+import { notify } from "../components/UI/Toaster";
 
 export default function WishlistPage() {
-  const [items, setItems] = useState([]);
+  const dispatch = useDispatch();
+  const items = useSelector((state) => state.wishlist.wishlist);
 
-  const load = () => {
-    try {
-      const value = JSON.parse(localStorage.getItem(KEY) || "[]");
-      setItems(Array.isArray(value) ? value : []);
-    } catch {
-      setItems([]);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const remove = (id) => {
-    const next = items.filter((item) => item._id !== id);
-    setItems(next);
-    localStorage.setItem(KEY, JSON.stringify(next));
-  };
-
-  const addToCart = (item) => {
-    const cart = JSON.parse(localStorage.getItem("eshop_cart") || "[]");
-    const existing = cart.find((cartItem) => cartItem._id === item._id);
-
-    const nextCart = existing
-      ? cart.map((cartItem) =>
-          cartItem._id === item._id
-            ? { ...cartItem, qty: (cartItem.qty || 0) + 1 }
-            : cartItem
-        )
-      : [...cart, { ...item, qty: 1 }];
-
-    localStorage.setItem("eshop_cart", JSON.stringify(nextCart));
+  const clearWishlist = () => {
+    items.forEach((item) => dispatch(removeFromWishlist(item._id)));
+    notify("Wishlist cleared.", "info");
   };
 
   return (
-    <Shell title="Wishlist" subtitle="Products you want to keep for later.">
+    <Shell
+      title="Wishlist"
+      subtitle={
+        items.length
+          ? `${items.length} saved product${items.length === 1 ? "" : "s"}.`
+          : "Save products you love and come back to them later."
+      }
+    >
       {!items.length ? (
         <Empty
           title="Your wishlist is empty"
-          text="Save products here and come back to them later."
-        />
+          text="Tap the heart on any product to save it for later."
+        >
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Discover products
+            <FiArrowRight />
+          </Link>
+        </Empty>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <Card key={item._id} className="overflow-hidden p-0">
-              <Link to={`/product/${item._id}`}>
-                <img
-                  src={imageUrl(item.images?.[0])}
-                  alt={item.name}
-                  className="h-56 w-full object-cover"
-                />
-              </Link>
+        <>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm text-gray-500">
+              <FiHeart className="text-primary" />
+              Saved items stay on this device.
+            </p>
 
-              <div className="p-4">
-                <Link
-                  to={`/product/${item._id}`}
-                  className="line-clamp-2 font-semibold text-secondary"
-                >
-                  {item.name}
-                </Link>
+            <button
+              type="button"
+              onClick={clearWishlist}
+              className="text-xs font-semibold text-gray-400 transition hover:text-red-600"
+            >
+              Clear wishlist
+            </button>
+          </div>
 
-                <p className="mt-2 font-bold text-secondary">
-                  {money(item.discountPrice)}
-                </p>
-
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    className="flex-1 px-3 py-2 text-xs"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </Button>
-
-                  <Button
-                    variant="danger"
-                    className="px-3 py-2 text-xs"
-                    onClick={() => remove(item._id)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+            {items.map((item) => (
+              <ProductCard key={item._id} product={item} showRemove />
+            ))}
+          </div>
+        </>
       )}
     </Shell>
   );

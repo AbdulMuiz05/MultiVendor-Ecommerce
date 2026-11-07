@@ -59,4 +59,11 @@ shopSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
+shopSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  },
+});
+
 module.exports = mongoose.model("Shop", shopSchema);

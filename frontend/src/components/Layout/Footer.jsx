@@ -1,88 +1,83 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
-  FiFacebook,
-  FiInstagram,
-  FiTwitter,
-  FiMail,
   FiArrowRight,
+  FiCheckCircle,
+  FiShield,
+  FiShoppingBag,
+  FiTruck,
 } from "react-icons/fi";
+
+const shopLinks = [
+  ["Home", "/"],
+  ["Best Selling", "/best-selling"],
+  ["All Products", "/products"],
+  ["Events & Offers", "/events"],
+  ["FAQ", "/faq"],
+];
+
+const accountLinks = [
+  ["My Profile", "/profile"],
+  ["My Orders", "/orders"],
+  ["Wishlist", "/wishlist"],
+  ["Shopping Cart", "/cart"],
+  ["Messages", "/inbox"],
+];
+
+const sellerLinks = [
+  ["Become a Seller", "/shop-create"],
+  ["Seller Login", "/shop-login"],
+  ["Seller Dashboard", "/shop-login"],
+];
 
 const Footer = () => {
   return (
     <footer className="mt-20 border-t border-gray-100 bg-secondary text-white">
       <div className="container-app py-14">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-1">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div>
             <Link to="/" className="inline-block">
               <span className="font-poppins text-2xl font-extrabold">
-                E<span className="text-primary">shop</span>
+                Eshop<span className="text-primary">.</span>
               </span>
             </Link>
 
             <p className="mt-4 max-w-sm text-sm leading-7 text-gray-400">
               A modern multi-vendor marketplace where customers discover
-              quality products from trusted sellers.
+              quality products from trusted independent sellers.
             </p>
 
-            <div className="mt-6 flex items-center gap-3">
-              <a
-                href="#"
-                aria-label="Facebook"
-                className="rounded-lg bg-white/10 p-2.5 transition hover:bg-primary"
-              >
-                <FiFacebook size={18} />
-              </a>
+            <div className="mt-6 grid gap-3 text-sm text-gray-400">
+              <span className="flex items-center gap-2">
+                <FiTruck className="text-primary" size={16} />
+                Seller-managed delivery updates
+              </span>
 
-              <a
-                href="#"
-                aria-label="Instagram"
-                className="rounded-lg bg-white/10 p-2.5 transition hover:bg-primary"
-              >
-                <FiInstagram size={18} />
-              </a>
+              <span className="flex items-center gap-2">
+                <FiShield className="text-primary" size={16} />
+                Protected account and checkout flows
+              </span>
 
-              <a
-                href="#"
-                aria-label="Twitter"
-                className="rounded-lg bg-white/10 p-2.5 transition hover:bg-primary"
-              >
-                <FiTwitter size={18} />
-              </a>
+              <span className="flex items-center gap-2">
+                <FiCheckCircle className="text-primary" size={16} />
+                Reviews from verified customers
+              </span>
             </div>
           </div>
 
           <div>
-            <h3 className="font-poppins text-base font-bold">Quick Links</h3>
+            <h3 className="font-poppins text-base font-bold">Shop</h3>
 
             <div className="mt-5 space-y-3 text-sm text-gray-400">
-              <Link
-                to="/"
-                className="block transition hover:text-white"
-              >
-                Home
-              </Link>
-
-              <Link
-                to="/products"
-                className="block transition hover:text-white"
-              >
-                Products
-              </Link>
-
-              <Link
-                to="/wishlist"
-                className="block transition hover:text-white"
-              >
-                Wishlist
-              </Link>
-
-              <Link
-                to="/cart"
-                className="block transition hover:text-white"
-              >
-                Shopping Cart
-              </Link>
+              {shopLinks.map(([label, to]) => (
+                <Link
+                  key={label}
+                  to={to}
+                  className="block transition hover:text-white"
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -90,62 +85,52 @@ const Footer = () => {
             <h3 className="font-poppins text-base font-bold">Account</h3>
 
             <div className="mt-5 space-y-3 text-sm text-gray-400">
-              <Link
-                to="/profile"
-                className="block transition hover:text-white"
-              >
-                My Profile
-              </Link>
-
-              <Link
-                to="/orders"
-                className="block transition hover:text-white"
-              >
-                My Orders
-              </Link>
-
-              <Link
-                to="/login"
-                className="block transition hover:text-white"
-              >
-                Login
-              </Link>
-
-              <Link
-                to="/signup"
-                className="block transition hover:text-white"
-              >
-                Create Account
-              </Link>
+              {accountLinks.map(([label, to]) => (
+                <Link
+                  key={label}
+                  to={to}
+                  className="block transition hover:text-white"
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
 
           <div>
-            <h3 className="font-poppins text-base font-bold">
-              Stay Connected
-            </h3>
+            <h3 className="font-poppins text-base font-bold">Sell with us</h3>
 
-            <p className="mt-5 text-sm leading-6 text-gray-400">
-              Subscribe for new products, exclusive offers, and marketplace
-              updates.
-            </p>
+            <div className="mt-5 space-y-3 text-sm text-gray-400">
+              {sellerLinks.map(([label, to]) => (
+                <Link
+                  key={label}
+                  to={to}
+                  className="block transition hover:text-white"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
 
-            <div className="mt-5 flex items-center rounded-xl border border-white/10 bg-white/5 p-1">
-              <FiMail className="ml-3 shrink-0 text-gray-400" size={18} />
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <FiShoppingBag className="text-primary" size={20} />
 
-              <input
-                type="email"
-                placeholder="Your email"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500"
-              />
+              <p className="mt-3 text-sm font-semibold text-white">
+                Open your storefront
+              </p>
 
-              <button
-                type="button"
-                className="rounded-lg bg-primary p-2.5 text-white transition hover:opacity-90"
-                aria-label="Subscribe"
+              <p className="mt-1 text-xs leading-6 text-gray-400">
+                Join the marketplace and manage products, orders, events and
+                payouts in one place.
+              </p>
+
+              <Link
+                to="/shop-create"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary"
               >
-                <FiArrowRight size={18} />
-              </button>
+                Get started
+                <FiArrowRight size={13} />
+              </Link>
             </div>
           </div>
         </div>
@@ -153,7 +138,15 @@ const Footer = () => {
         <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Eshop. All rights reserved.</p>
 
-          <p>Built for a modern shopping experience.</p>
+          <div className="flex items-center gap-4">
+            <Link to="/faq" className="transition hover:text-gray-300">
+              Help
+            </Link>
+            <Link to="/events" className="transition hover:text-gray-300">
+              Offers
+            </Link>
+            <span>Built for modern commerce.</span>
+          </div>
         </div>
       </div>
     </footer>

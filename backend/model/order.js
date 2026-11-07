@@ -121,4 +121,13 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+orderSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    (ret.cart || []).forEach((item) => {
+      if (item.shop) delete item.shop.password;
+    });
+    return ret;
+  },
+});
+
 module.exports = mongoose.model("Order", orderSchema);

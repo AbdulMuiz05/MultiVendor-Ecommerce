@@ -54,6 +54,10 @@ export const activateUser = (activationToken) => async (dispatch) => {
       { withCredentials: true }
     );
 
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
     dispatch({
       type: userActivationSuccess,
       payload: data.user,
@@ -78,6 +82,10 @@ export const loginUser = (email, password) => async (dispatch) => {
       { withCredentials: true }
     );
 
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
     dispatch({
       type: userLoginSuccess,
       payload: data.user,
@@ -92,25 +100,45 @@ export const loginUser = (email, password) => async (dispatch) => {
   }
 };
 
-export const loadUser = () => async (dispatch) => {
-  try {
-    dispatch({ type: loadUserRequest });
+let pendingLoadUser = null;
 
-    const { data } = await axios.get(
-      `${API_URL}/user/getuser`,
-      { withCredentials: true }
-    );
+export const loadUser = () => (dispatch) => {
+  if (pendingLoadUser) return pendingLoadUser;
 
-    dispatch({
-      type: loadUserSuccess,
-      payload: data.user,
-    });
-  } catch (error) {
-    dispatch({
-      type: loadUserFailed,
-      payload: error.response?.data?.message || error.message,
-    });
-  }
+  pendingLoadUser = (async () => {
+    try {
+      dispatch({ type: loadUserRequest });
+
+      const { data } = await axios.get(
+        `${API_URL}/user/getuser`,
+        { withCredentials: true }
+      );
+
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      dispatch({
+        type: loadUserSuccess,
+        payload: data.user,
+      });
+
+      return data.user;
+    } catch (error) {
+      localStorage.removeItem("user");
+
+      dispatch({
+        type: loadUserFailed,
+        payload: error.response?.data?.message || error.message,
+      });
+
+      return null;
+    } finally {
+      pendingLoadUser = null;
+    }
+  })();
+
+  return pendingLoadUser;
 };
 
 const finishLogout = (dispatch) => {

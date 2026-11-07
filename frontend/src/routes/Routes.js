@@ -24,7 +24,9 @@ import OrderDetailsPage from "../pages/OrderDetailsPage";
 import TrackOrderPage from "../pages/TrackOrderPage";
 
 import ProfilePage from "../pages/ProfilePage";
+import OrdersPage from "../pages/OrdersPage";
 import UserInbox from "../pages/UserInbox";
+import NotFoundPage from "../pages/NotFoundPage";
 
 import ShopHomePage from "../pages/Shop/ShopHomePage";
 import ShopDashboardPage from "../pages/Shop/ShopDashboardPage";
@@ -132,6 +134,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/orders"
+        element={
+          <ProtectedRoute>
+            <OrdersPage />
           </ProtectedRoute>
         }
       />
@@ -328,6 +339,8 @@ const AppRoutes = () => {
           </ProtectedAdminRoute>
         }
       />
+
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

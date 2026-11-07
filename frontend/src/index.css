@@ -38,6 +38,10 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -51,6 +55,11 @@ img {
 ::selection {
   background: rgba(255, 77, 79, 0.18);
   color: #111827;
+}
+
+:focus-visible {
+  outline: 2px solid #ff4d4f;
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {
@@ -71,6 +80,45 @@ img {
   background: #94a3b8;
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-item {
+  animation: toast-in 0.22s ease-out both;
+}
+
+.rise-in {
+  animation: soft-rise 0.45s ease-out both;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @layer components {
   .container-app {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
@@ -81,18 +129,35 @@ img {
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0;
+    @apply inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 font-semibold text-secondary transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-soft;
+    @apply inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 font-semibold text-secondary transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-soft active:translate-y-0 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .input-field {
-    @apply w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10;
+    @apply w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-primary focus:ring-4 focus:ring-primary/10;
   }
 
   .section-title {
     @apply font-poppins text-2xl font-bold text-secondary sm:text-3xl;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-primary;
+  }
+
+  .badge-count {
+    @apply absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white;
+  }
+
+  .surface-grid {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(148, 163, 184, 0.18) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
   }
 }

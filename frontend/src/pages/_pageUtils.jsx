@@ -1,48 +1,26 @@
 import React, { useEffect } from "react";
-import axios from "axios";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { FiArrowLeft, FiLoader, FiSearch } from "react-icons/fi";
+
+import { API_URL, SOCKET_URL, api, getError } from "../utils/api";
 import {
-  FiArrowLeft,
-  FiLoader,
-  FiSearch,
-} from "react-icons/fi";
-
-import { API_URL, SOCKET_URL } from "../server";
+  imageUrl,
+  money,
+  orderStatusTone,
+  safeArray,
+} from "../utils/format";
 import { loadUser } from "../redux/actions/user";
-import UserMenu from "../components/Layout/UserMenu";
+import SiteHeader from "../components/Layout/SiteHeader";
+import SiteFooter from "../components/Layout/Footer";
+import DashboardHeader from "../components/Layout/DashboardHeader";
 
-export { API_URL, SOCKET_URL };
+export { API_URL, SOCKET_URL, api, getError, imageUrl, money, safeArray };
 
-export const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-export const imageUrl = (src) => {
-  if (!src) {
-    return "https://placehold.co/800x800/f8fafc/64748b?text=Eshop";
-  }
-
-  if (/^https?:\/\//i.test(src)) {
-    return src;
-  }
-
-  const root = API_URL.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
-
-  return `${root}/${String(src).replace(/^\//, "")}`;
-};
-
-export const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
-
-export const safeArray = (value) => (Array.isArray(value) ? value : []);
-
-export const PageLoader = () => (
-  <div className="flex min-h-[40vh] items-center justify-center">
+export const PageLoader = ({ label = "Loading..." }) => (
+  <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
     <FiLoader className="animate-spin text-primary" size={30} />
+    <p className="text-sm font-medium text-gray-500">{label}</p>
   </div>
 );
 
@@ -106,15 +84,13 @@ export const Select = ({
   </label>
 );
 
-const PUBLIC_AUTH_PATHS = [
-  "/",
-  "/products",
-  "/best-selling",
-  "/events",
-  "/faq",
-  "/cart",
-  "/wishlist",
-];
+const isDashboardPath = (pathname) => {
+  if (pathname.startsWith("/admin")) return true;
+
+  const parts = pathname.split("/").filter(Boolean);
+
+  return parts[0] === "shop" && parts.length > 2;
+};
 
 export const Shell = ({
   children,
@@ -123,94 +99,43 @@ export const Shell = ({
   back = false,
 }) => {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const dispatch = useDispatch();
-  const { isAuthenticated, authChecked } = useSelector(
-    (state) => state.user
-  );
-
-  const showAuthLinks =
-    PUBLIC_AUTH_PATHS.includes(pathname) ||
-    pathname.startsWith("/product/");
-
-  const showAccount =
-    !pathname.startsWith("/admin") && !pathname.startsWith("/shop");
+  const { pathname } = useLocation();
+  const { authChecked, loading } = useSelector((state) => state.user);
+  const dashboard = isDashboardPath(pathname);
 
   useEffect(() => {
-    if (showAccount && !authChecked) {
+    if (!dashboard && !authChecked && !loading) {
       dispatch(loadUser());
     }
-  }, [showAccount, authChecked, dispatch]);
-
-  const handleLoggedOut = () => {
-    if (!showAuthLinks) {
-      navigate("/", { replace: true });
-    }
-  };
+  }, [dashboard, authChecked, loading, dispatch]);
 
   return (
-    <div className="min-h-screen bg-light">
-      <header className="sticky top-0 z-30 border-b border-gray-100 bg-white/95 backdrop-blur">
-        <div className="container-app flex min-h-16 items-center justify-between gap-4">
-          <Link
-            to="/"
-            className="font-poppins text-xl font-extrabold text-secondary"
-          >
-            Eshop<span className="text-primary">.</span>
-          </Link>
+    <div className="flex min-h-screen flex-col bg-light">
+      {dashboard ? <DashboardHeader /> : <SiteHeader />}
 
-          <div className="flex items-center gap-2 sm:gap-3">
+      <main className="container-app w-full flex-1 py-8 sm:py-10">
+        {(back || title || subtitle) && (
+          <div className="mb-8">
             {back && (
               <button
+                type="button"
                 onClick={() => navigate(-1)}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-primary"
+                className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-primary"
               >
-                <FiArrowLeft />
+                <FiArrowLeft size={16} />
                 Back
               </button>
             )}
 
-            {showAccount && !authChecked && (
-              <div className="h-10 w-32" aria-hidden="true" />
+            {title && (
+              <h1 className="font-poppins text-3xl font-extrabold tracking-tight text-secondary sm:text-4xl">
+                {title}
+              </h1>
             )}
-
-            {showAccount && authChecked && isAuthenticated && (
-              <UserMenu onLoggedOut={handleLoggedOut} />
-            )}
-
-            {showAccount && authChecked && !isAuthenticated && showAuthLinks && (
-              <nav
-                aria-label="Account"
-                className="flex items-center gap-1 sm:gap-2"
-              >
-                <Link
-                  to="/login"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:text-primary"
-                >
-                  Login
-                </Link>
-
-                <Link
-                  to="/sign-up"
-                  className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 sm:px-4"
-                >
-                  Sign Up
-                </Link>
-              </nav>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="container-app py-8 sm:py-10">
-        {(title || subtitle) && (
-          <div className="mb-8">
-            <h1 className="font-poppins text-3xl font-extrabold text-secondary">
-              {title}
-            </h1>
 
             {subtitle && (
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
                 {subtitle}
               </p>
             )}
@@ -219,6 +144,8 @@ export const Shell = ({
 
         {children}
       </main>
+
+      {!dashboard && <SiteFooter />}
     </div>
   );
 };
@@ -234,35 +161,55 @@ export const Card = ({ children, className = "" }) => (
 export const Empty = ({
   title = "Nothing here yet",
   text = "There is nothing to display right now.",
+  children,
 }) => (
   <Card className="py-14 text-center">
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto flex max-w-md flex-col items-center">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-2xl">
+        ✦
+      </div>
+
       <h3 className="font-poppins text-xl font-bold text-secondary">
         {title}
       </h3>
-      <p className="mt-2 text-sm text-gray-500">
-        {text}
-      </p>
+
+      <p className="mt-2 text-sm leading-6 text-gray-500">{text}</p>
+
+      {children && <div className="mt-6">{children}</div>}
     </div>
   </Card>
 );
 
-export const Stat = ({ label, value, note }) => (
+export const Stat = ({ label, value, note, icon: Icon }) => (
   <Card>
-    <p className="text-sm font-medium text-gray-500">
-      {label}
-    </p>
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-gray-500">{label}</p>
 
-    <p className="mt-2 font-poppins text-3xl font-extrabold text-secondary">
-      {value}
-    </p>
+        <p className="mt-2 font-poppins text-3xl font-extrabold text-secondary">
+          {value}
+        </p>
 
-    {note && (
-      <p className="mt-1 text-xs text-gray-400">
-        {note}
-      </p>
-    )}
+        {note && <p className="mt-1 text-xs text-gray-400">{note}</p>}
+      </div>
+
+      {Icon && (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon size={20} />
+        </span>
+      )}
+    </div>
   </Card>
+);
+
+export const StatusBadge = ({ status }) => (
+  <span
+    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${orderStatusTone(
+      status
+    )}`}
+  >
+    {status || "Processing"}
+  </span>
 );
 
 export const SearchBox = ({
@@ -278,53 +225,16 @@ export const SearchBox = ({
       onChange={onChange}
       placeholder={placeholder}
       className="input-field pl-11"
+      type="search"
     />
   </div>
-);
-
-export const ProductTile = ({ product, onAdd }) => (
-  <Card className="overflow-hidden p-0">
-    <Link to={`/product/${product._id}`}>
-      <img
-        src={imageUrl(product.images?.[0])}
-        alt={product.name || "Product"}
-        className="h-56 w-full object-cover"
-      />
-    </Link>
-
-    <div className="p-4">
-      <p className="text-xs font-medium text-primary">
-        {product.category || "Product"}
-      </p>
-
-      <Link to={`/product/${product._id}`}>
-        <h3 className="mt-1 line-clamp-2 font-semibold text-secondary">
-          {product.name}
-        </h3>
-      </Link>
-
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="font-poppins text-lg font-bold text-secondary">
-          {money(product.discountPrice ?? product.price)}
-        </span>
-
-        {onAdd && (
-          <Button
-            onClick={() => onAdd(product)}
-            className="px-3 py-2 text-xs"
-          >
-            Add
-          </Button>
-        )}
-      </div>
-    </div>
-  </Card>
 );
 
 export const Table = ({
   columns,
   rows,
   empty = "No records found.",
+  loading = false,
 }) => (
   <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
     <div className="overflow-x-auto">
@@ -332,10 +242,7 @@ export const Table = ({
         <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
           <tr>
             {columns.map((column) => (
-              <th
-                key={column.key}
-                className="px-5 py-4 font-semibold"
-              >
+              <th key={column.key} className="px-5 py-4 font-semibold">
                 {column.label}
               </th>
             ))}
@@ -343,20 +250,25 @@ export const Table = ({
         </thead>
 
         <tbody className="divide-y divide-gray-100">
-          {rows.length ? (
+          {loading ? (
+            [1, 2, 3, 4].map((row) => (
+              <tr key={row}>
+                {columns.map((column) => (
+                  <td key={column.key} className="px-5 py-5">
+                    <span className="block h-4 w-24 animate-pulse rounded bg-gray-100" />
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : rows.length ? (
             rows.map((row, index) => (
               <tr
                 key={row._id || row.id || index}
-                className="hover:bg-gray-50/70"
+                className="transition hover:bg-gray-50/70"
               >
                 {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className="px-5 py-4 text-gray-700"
-                  >
-                    {column.render
-                      ? column.render(row)
-                      : row[column.key]}
+                  <td key={column.key} className="px-5 py-4 text-gray-700">
+                    {column.render ? column.render(row) : row[column.key]}
                   </td>
                 ))}
               </tr>
@@ -365,7 +277,7 @@ export const Table = ({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-5 py-12 text-center text-gray-400"
+                className="px-5 py-14 text-center text-gray-400"
               >
                 {empty}
               </td>
@@ -376,8 +288,3 @@ export const Table = ({
     </div>
   </div>
 );
-
-export const getError = (error) =>
-  error?.response?.data?.message ||
-  error?.message ||
-  "Something went wrong.";
