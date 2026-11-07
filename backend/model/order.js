@@ -45,6 +45,72 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const canonicalPaymentType = (value) => {
+  const type = String(value || "").trim();
+
+  if (/^stripe$/i.test(type)) return "Stripe";
+  if (/^cod$/i.test(type)) return "COD";
+
+  return type;
+};
+
+const canonicalPaymentStatus = (value) => {
+  const status = String(value || "").trim();
+  const known = ["Pending", "Processing", "Paid", "Failed", "Refunded"];
+
+  return (
+    known.find((item) => item.toLowerCase() === status.toLowerCase()) || status
+  );
+};
+
+const paymentInfoSchema = new mongoose.Schema(
+  {
+    id: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      default: "Pending",
+      set: canonicalPaymentStatus,
+    },
+    type: {
+      type: String,
+      default: "COD",
+      set: canonicalPaymentType,
+    },
+  },
+  { _id: false }
+);
+
+const legacyPaymentInfo = (value) => {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return { status: "Pending", type: "COD" };
+  }
+
+  if (/^pi_[A-Za-z0-9]+$/i.test(text)) {
+    return { id: text, status: "Paid", type: "Stripe" };
+  }
+
+  const upper = text.toUpperCase();
+
+  if (upper === "COD") {
+    return { status: "Pending", type: "COD" };
+  }
+
+  if (upper === "STRIPE") {
+    return { status: "Pending", type: "Stripe" };
+  }
+
+  if (["PENDING", "PROCESSING", "PAID", "FAILED", "REFUNDED"].includes(upper)) {
+    return { status: canonicalPaymentStatus(text), type: "Stripe" };
+  }
+
+  return { id: text, status: "Paid", type: "Stripe" };
+};
+
 const orderSchema = new mongoose.Schema(
   {
     cart: {
@@ -87,9 +153,8 @@ const orderSchema = new mongoose.Schema(
       default: "Processing",
     },
     paymentInfo: {
-      id: String,
-      status: String,
-      type: String,
+      type: paymentInfoSchema,
+      default: () => ({ status: "Pending", type: "COD" }),
     },
     paidAt: {
       type: Date,
@@ -119,6 +184,32 @@ const orderSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+);
+
+// Legacy orders stored paymentInfo as a primitive string because the old
+// schema definition was interpreted as a String path.
+orderSchema.pre("init", function (doc) {
+  if (typeof doc.paymentInfo === "string") {
+    doc.paymentInfo = legacyPaymentInfo(doc.paymentInfo);
+    return;
+  }
+
+  if (doc.paymentInfo && typeof doc.paymentInfo === "object") {
+    doc.paymentInfo = {
+      ...(doc.paymentInfo.id ? { id: String(doc.paymentInfo.id) } : {}),
+      status: canonicalPaymentStatus(doc.paymentInfo.status) || "Pending",
+      type: canonicalPaymentType(doc.paymentInfo.type) || "COD",
+    };
+  }
+});
+
+orderSchema.index(
+  { "paymentInfo.id": 1, shopId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { "paymentInfo.id": { $exists: true } },
+    name: "unique_payment_per_shop",
+  }
 );
 
 orderSchema.set("toJSON", {

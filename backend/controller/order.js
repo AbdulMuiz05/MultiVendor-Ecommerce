@@ -11,11 +11,61 @@ const normalizeQuantity = (value) => {
   return Number.isInteger(qty) && qty > 0 ? qty : null;
 };
 
+const normalizePaymentInfo = (value) => {
+  if (typeof value === "string") {
+    const text = value.trim();
+
+    if (/^cod$/i.test(text)) {
+      return { type: "COD" };
+    }
+
+    if (text) {
+      return { type: "Stripe", id: text };
+    }
+
+    return {};
+  }
+
+  return value && typeof value === "object" ? value : {};
+};
+
+const cartMatchesRequestedItems = (orders, requestedItems) => {
+  const existingItems = new Map();
+
+  for (const order of orders) {
+    for (const item of order.cart || []) {
+      const key = String(item._id);
+      existingItems.set(
+        key,
+        (existingItems.get(key) || 0) + Number(item.qty || 0)
+      );
+    }
+  }
+
+  if (existingItems.size !== requestedItems.size) {
+    return false;
+  }
+
+  return [...requestedItems.entries()].every(
+    ([productId, qty]) => existingItems.get(productId) === qty
+  );
+};
+
+const summarizeOrders = (orders) => ({
+  success: true,
+  orders,
+  totalPrice: orders.reduce((sum, order) => sum + order.totalPrice, 0),
+  recovered: true,
+});
+
 router.post("/create-order", isAuthenticated, async (req, res) => {
   const session = await mongoose.startSession();
+  let requestedItems = new Map();
+  let verifiedPaymentId = null;
 
   try {
-    const { cart, shippingAddress, paymentInfo = {} } = req.body;
+    const { cart, shippingAddress } = req.body;
+    const paymentInfo = normalizePaymentInfo(req.body.paymentInfo);
 
     if (!Array.isArray(cart) || cart.length === 0) {
       return res.status(400).json({
@@ -31,7 +81,7 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
       });
     }
 
-    const requestedItems = new Map();
+    requestedItems = new Map();
 
     for (const item of cart) {
       if (!item?._id) {
@@ -132,22 +182,12 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
     }
 
     if (paymentType === "STRIPE") {
-      if (!paymentInfo.id) {
+      const paymentId = String(paymentInfo.id || "").trim();
+
+      if (!paymentId) {
         return res.status(400).json({
           success: false,
           message: "Stripe payment ID is required",
-        });
-      }
-
-      const existingPaidOrder = await Order.findOne({
-        "paymentInfo.id": paymentInfo.id,
-        "user._id": req.user._id,
-      }).session(session);
-
-      if (existingPaidOrder) {
-        return res.status(409).json({
-          success: false,
-          message: "This payment has already been used for an order",
         });
       }
 
@@ -160,13 +200,12 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
 
       const Stripe = require("stripe");
       const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentInfo.id
-      );
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentId);
 
       const expectedAmount = Math.round(grandTotal * 100);
 
       if (
+        paymentIntent.id !== paymentId ||
         paymentIntent.metadata?.userId !== String(req.user._id) ||
         paymentIntent.status !== "succeeded" ||
         paymentIntent.amount !== expectedAmount ||
@@ -177,7 +216,33 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
           message: "Stripe payment could not be verified",
         });
       }
+
+      verifiedPaymentId = paymentIntent.id;
+
+      const existingPaymentOrders = await Order.find({
+        "paymentInfo.id": verifiedPaymentId,
+        "user._id": req.user._id,
+      });
+
+      if (existingPaymentOrders.length) {
+        if (
+          !cartMatchesRequestedItems(existingPaymentOrders, requestedItems)
+        ) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "This payment has already been used for a different order",
+          });
+        }
+
+        return res.status(200).json(summarizeOrders(existingPaymentOrders));
+      }
     }
+
+    const orderPaymentInfo =
+      paymentType === "STRIPE"
+        ? { id: verifiedPaymentId, status: "Paid", type: "Stripe" }
+        : { status: "Pending", type: "COD" };
 
     let createdOrders = [];
 
@@ -243,11 +308,7 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
                 email: req.user.email,
               },
               totalPrice: shopTotal,
-              paymentInfo: {
-                id: paymentInfo.id || undefined,
-                status: paymentType === "STRIPE" ? "Paid" : "Pending",
-                type: paymentType === "STRIPE" ? "Stripe" : "COD",
-              },
+              paymentInfo: { ...orderPaymentInfo },
               ...(isPaid ? { paidAt: new Date() } : {}),
             },
           ],
@@ -267,6 +328,43 @@ router.post("/create-order", isAuthenticated, async (req, res) => {
       ),
     });
   } catch (error) {
+    const duplicatePayment =
+      error?.code === 11000 && Boolean(verifiedPaymentId);
+
+    if (duplicatePayment) {
+      let existingOrders = [];
+
+      for (
+        let attempt = 0;
+        attempt < 3 && existingOrders.length === 0;
+        attempt += 1
+      ) {
+        existingOrders = await Order.find({
+          "paymentInfo.id": verifiedPaymentId,
+          "user._id": req.user._id,
+        }).catch(() => []);
+
+        if (existingOrders.length === 0 && attempt < 2) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 100 * (attempt + 1))
+          );
+        }
+      }
+
+      if (
+        existingOrders.length &&
+        cartMatchesRequestedItems(existingOrders, requestedItems)
+      ) {
+        return res.status(200).json(summarizeOrders(existingOrders));
+      }
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "This payment is already being processed for another order",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: error.message,

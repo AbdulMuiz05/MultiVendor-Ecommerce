@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import {
@@ -42,68 +42,122 @@ function StripeForm({ clientSecret, checkout, amount }) {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [paidIntentId, setPaidIntentId] = useState(
+    checkout.paymentIntentId || ""
+  );
+  const submitting = useRef(false);
+
+  const savePaidIntent = (paymentIntent) => {
+    let pending = {};
+
+    try {
+      pending =
+        JSON.parse(localStorage.getItem("eshop_pending_checkout") || "null") ||
+        {};
+    } catch {
+      pending = {};
+    }
+
+    setPaidIntentId(paymentIntent.id);
+    localStorage.setItem(
+      "eshop_pending_checkout",
+      JSON.stringify({
+        ...pending,
+        ...checkout,
+        paymentIntentId: paymentIntent.id,
+        paymentIntentStatus: paymentIntent.status,
+      })
+    );
+  };
+
+  const createOrder = async (paymentIntentId) => {
+    const response = await api.post("/order/create-order", {
+      cart: checkout.cart,
+      shippingAddress: checkout.shippingAddress,
+      paymentInfo: {
+        type: "Stripe",
+        id: paymentIntentId,
+      },
+    });
+
+    const orders = response.data.orders || [];
+
+    localStorage.removeItem("eshop_pending_checkout");
+    dispatch(clearCart());
+
+    notify("Payment successful. Order placed.");
+
+    navigate(
+      `/order-success?order=${orders[0]?._id || ""}&count=${orders.length}`
+    );
+  };
 
   const pay = async (event) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
-      setError("Stripe is still loading. Please try again in a moment.");
-      return;
-    }
+    if (submitting.current) return;
 
+    submitting.current = true;
     setBusy(true);
     setError("");
 
     try {
-      const card = elements.getElement(CardElement);
+      let paymentIntentId = paidIntentId;
 
-      if (!card) {
-        throw new Error("Payment card form is unavailable.");
+      if (!paymentIntentId) {
+        if (!stripe || !elements) {
+          throw new Error(
+            "Stripe is still loading. Please try again in a moment."
+          );
+        }
+
+        const card = elements.getElement(CardElement);
+
+        if (!card) {
+          throw new Error("Payment card form is unavailable.");
+        }
+
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: { card },
+        });
+
+        const paymentIntent =
+          result.error?.payment_intent?.status === "succeeded"
+            ? result.error.payment_intent
+            : result.paymentIntent;
+
+        if (result.error && !paymentIntent) {
+          throw new Error(result.error.message);
+        }
+
+        if (paymentIntent?.status !== "succeeded") {
+          throw new Error("Payment was not completed.");
+        }
+
+        paymentIntentId = paymentIntent.id;
+        savePaidIntent(paymentIntent);
       }
 
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card },
-      });
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      if (result.paymentIntent?.status !== "succeeded") {
-        throw new Error("Payment was not completed.");
-      }
-
-      const response = await api.post("/order/create-order", {
-        ...checkout,
-        paymentInfo: {
-          type: "Stripe",
-          status: "Paid",
-          id: result.paymentIntent.id,
-        },
-      });
-
-      const orders = response.data.orders || [];
-
-      localStorage.removeItem("eshop_pending_checkout");
-      dispatch(clearCart());
-
-      notify("Payment successful. Order placed.");
-
-      navigate(
-        `/order-success?order=${orders[0]?._id || ""}&count=${orders.length}`
-      );
+      await createOrder(paymentIntentId);
     } catch (requestError) {
       setError(getError(requestError));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
 
   return (
     <form onSubmit={pay}>
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4">
-        <CardElement options={cardElementOptions} />
-      </div>
+      {paidIntentId ? (
+        <p className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Payment received. Complete your order without being charged again.
+        </p>
+      ) : (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4">
+          <CardElement options={cardElementOptions} />
+        </div>
+      )}
 
       {error && (
         <p className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -111,9 +165,16 @@ function StripeForm({ clientSecret, checkout, amount }) {
         </p>
       )}
 
-      <Button disabled={busy || !stripe} className="mt-5 w-full">
+      <Button
+        disabled={busy || (!paidIntentId && !stripe)}
+        className="mt-5 w-full"
+      >
         <FiLock className="mr-2" />
-        {busy ? "Processing payment..." : `Pay ${money(amount)}`}
+        {busy
+          ? "Processing payment..."
+          : paidIntentId
+          ? "Complete order"
+          : `Pay ${money(amount)}`}
       </Button>
 
       <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-gray-400">
@@ -150,16 +211,39 @@ export default function PaymentPage() {
 
     setLoading(true);
 
-    Promise.all([
-      api.get("/payment/stripeapikey"),
-      api.post("/payment/process", { cart: checkout.cart }),
-    ])
+    const storedClientSecret = checkout.stripeClientSecret;
+    const storedAmount = Number(checkout.stripeAmount || 0);
+    const paymentRequest =
+      storedClientSecret && storedAmount > 0
+        ? Promise.resolve({
+            data: {
+              client_secret: storedClientSecret,
+              displayAmount: storedAmount,
+            },
+          })
+        : api.post("/payment/process", { cart: checkout.cart });
+
+    Promise.all([api.get("/payment/stripeapikey"), paymentRequest])
       .then(([keyResponse, paymentResponse]) => {
         if (!active) return;
 
+        const clientSecret = paymentResponse.data.client_secret;
+        const displayAmount = Number(paymentResponse.data.displayAmount || 0);
+
         setPublishableKey(keyResponse.data.stripeApikey);
-        setClientSecret(paymentResponse.data.client_secret);
-        setServerAmount(Number(paymentResponse.data.displayAmount || 0));
+        setClientSecret(clientSecret);
+        setServerAmount(displayAmount);
+
+        if (!storedClientSecret || storedAmount <= 0) {
+          localStorage.setItem(
+            "eshop_pending_checkout",
+            JSON.stringify({
+              ...checkout,
+              stripeClientSecret: clientSecret,
+              stripeAmount: displayAmount,
+            })
+          );
+        }
       })
       .catch((requestError) => {
         if (active) setError(getError(requestError));

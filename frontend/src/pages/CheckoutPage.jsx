@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const submitting = useRef(false);
 
   useEffect(() => {
     setForm((current) => ({
@@ -135,9 +136,14 @@ export default function CheckoutPage() {
       },
       paymentInfo: {
         type: method,
-        status: method === "COD" ? "Pending" : "Processing",
       },
     };
+
+    if (submitting.current) return;
+
+    submitting.current = true;
+    setBusy(true);
+    setError("");
 
     try {
       if (method === "Stripe") {
@@ -163,6 +169,7 @@ export default function CheckoutPage() {
     } catch (requestError) {
       setError(getError(requestError));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
