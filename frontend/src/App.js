@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/Routes";
+import ScrollToTop from "./components/ScrollToTop";
 import Toaster from "./components/UI/Toaster";
 
 const FALLBACK_IMAGE =
@@ -26,6 +27,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AppRoutes />
       <Toaster />
     </BrowserRouter>
