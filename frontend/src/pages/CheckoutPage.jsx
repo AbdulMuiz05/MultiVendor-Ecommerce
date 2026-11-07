@@ -48,7 +48,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     name: user?.name || "",
     phone: user?.phoneNumber || "",
-    country: "India",
+    country: "Pakistan",
     city: "",
     address1: "",
     address2: "",
@@ -263,7 +263,7 @@ export default function CheckoutPage() {
                   }`}
                   value={form.phone}
                   onChange={(event) => setField("phone", event.target.value)}
-                  placeholder="+91 98765 43210"
+                  placeholder="+92 300 1234567"
                   inputMode="tel"
                   autoComplete="tel"
                 />

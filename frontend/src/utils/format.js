@@ -1,14 +1,15 @@
 import { API_URL } from "../server";
 
-const inrFormatter = new Intl.NumberFormat("en-IN", {
+const usdFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "INR",
+  currency: "USD",
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
 export const safeArray = (value) => (Array.isArray(value) ? value : []);
 
-export const money = (value) => inrFormatter.format(Number(value) || 0);
+export const money = (value) => usdFormatter.format(Number(value) || 0);
 
 export const imageUrl = (src) => {
   if (!src) {
